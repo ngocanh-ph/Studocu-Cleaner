@@ -32,11 +32,38 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
                 count++;
             }
         }
-        updateStatus(`Đã xóa ${count} cookies! Đang tải lại...`, false);
-        
+        // Xóa thêm storage/cache của Studocu (bộ đếm lượt xem thường nằm ở đây)
+        const origins = [
+            "https://www.studocu.com", "https://studocu.com",
+            "https://www.studocu.vn", "https://studocu.vn"
+        ];
+        try {
+            await chrome.browsingData.remove({ origins }, {
+                localStorage: true,
+                indexedDB: true,
+                cacheStorage: true,
+                serviceWorkers: true,
+                cache: true
+            });
+        } catch (e) {
+            console.warn("browsingData:", e);
+        }
+        updateStatus(`Đã xóa ${count} cookies và dữ liệu trang! Đang tải lại...`, false);
+
         setTimeout(() => {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-                if(tabs[0]) chrome.tabs.reload(tabs[0].id);
+                const tab = tabs[0];
+                if (!tab) return;
+                // Bỏ tham số ?sid= để không bị nhận diện lại phiên cũ
+                try {
+                    const u = new URL(tab.url);
+                    if (u.searchParams.has('sid')) {
+                        u.searchParams.delete('sid');
+                        chrome.tabs.update(tab.id, { url: u.toString() });
+                        return;
+                    }
+                } catch (e) {}
+                chrome.tabs.reload(tab.id, { bypassCache: true });
             });
         }, 1000);
         
@@ -68,7 +95,12 @@ function runCleanViewer() {
         return;
     }
 
-    if (!confirm(`Tìm thấy ${pages.length} trang.\nBấm OK để tạo PDF.\n(Ở hộp thoại in: Margins = None, Scale = 100%, bật Background graphics)`)) return;
+    const emptyCount = Array.from(pages).filter(p => !p.querySelector('.pc')).length;
+    const warn = emptyCount > 0
+        ? `\n⚠️ ${emptyCount}/${pages.length} trang chưa có nội dung (Studocu chưa gửi hoặc chưa cuộn tới) và sẽ bị trống.\n`
+        : '';
+
+    if (!confirm(`Tìm thấy ${pages.length} trang.${warn}\nBấm OK để tạo PDF.\n(Ở hộp thoại in: Margins = None, Scale = 100%, bật Background graphics)`)) return;
 
     const SCALE_FACTOR = 4;
     const HEIGHT_SCALE_DIVISOR = 4;
@@ -83,7 +115,7 @@ function runCleanViewer() {
             'color', 'background-color',
             'text-align', 'white-space',
             'display', 'visibility', 'opacity', 'z-index',
-            'text-shadow', 'unicode-bidi', 'font-feature-settings', 'padding'
+            'unicode-bidi', 'font-feature-settings', 'padding'
         ];
         
         const scaleProps = ['font-size', 'line-height'];

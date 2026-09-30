@@ -10,7 +10,8 @@
   },
   "permissions": [
     "cookies",
-    "scripting",  
+    "browsingData",
+    "scripting",
     "activeTab"
   ],
   "host_permissions": [

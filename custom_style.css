@@ -14,7 +14,7 @@ html, body {
     z-index: -9999 !important;
 }
 
-.pf, .pc, #document-wrapper {
+.pf, .page-content, .pc, #document-wrapper {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
